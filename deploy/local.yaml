@@ -1,0 +1,48 @@
+useStackTrace: true
+dcRedis:
+  host: "localhost"
+  port: 8803
+  maxPoolInterval: 5s
+  oauthCodeExp: 1m
+tcRedis:
+  host: "localhost"
+  port: 8805
+  maxPoolInterval: 5s
+  accessTokenDuration: 15m
+  refreshTokenDuration: 720h
+clientPostgres:
+  host: "localhost"
+  port: 5492
+  dataBaseName: "client-db"
+  maxPoolInterval: 10s
+userPostgres:
+  host: "localhost"
+  port: 5492
+  dataBaseName: "user-db"
+  maxPoolInterval: 10s
+vault:
+  host: "localhost"
+  port: 8801
+  clientTimeout: "10s"
+  tokenRepo:
+    path: "/v1/secret/data/auth-api/tokens"
+    oAuthJwtSecretName: "oAuthJwtSecret"
+    appJwtSecretName: "appJwtSecret"
+  redisSecret:
+    path: "/v1/secret/data/oauth-service/redis"
+    dpRedisUserName: dcRedisUser
+    dpRedisSecretName: dcRedisSecret
+    tcRedisUserName: tcRedisUser
+    tcRedisSecretName: tcRedisSecret
+  postgresSecret:
+    path: "/v1/secret/data/oauth-service/postgres"
+    clPostgresUserName: "clPostgresUser"
+    clPostgresSecretName: "clPostgresSecret"
+    uPostgresUserName: "uPostgresUser"
+    uPostgresSecretName: "uPostgresSecret"
+grpcServer:
+  port: 4001
+  maxPollTime: 10s
+externalServer:
+  port: 1001
+  maxPollTime: 15s
