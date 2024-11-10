@@ -14,7 +14,7 @@ func NewLogger(useStackTrace bool) *zerolog.Logger {
 		}
 	}
 
-	l := zerolog.New(os.Stdout).With().Caller().Timestamp().Logger()
+	l := zerolog.New(os.Stdout).Level(zerolog.InfoLevel).With().Caller().Timestamp().Logger()
 
 	return &l
 }

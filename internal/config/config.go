@@ -67,6 +67,7 @@ type (
 			Path string `yaml:"path"`
 
 			OAuthJwtSecretName string `yaml:"oauthJwtSecretName"`
+			AppJwtSecretName   string `yaml:"appJwtSecretName"`
 		} `yaml:"tokenRepo"`
 
 		RedisSecret struct {
@@ -77,6 +78,15 @@ type (
 			TcRedisSecretName string `yaml:"tcRedisSecretName"`
 			TcRedisUserName   string `yaml:"tcRedisUserName"`
 		} `yaml:"redisSecret"`
+
+		PostgresSecret struct {
+			Path string `yaml:"path"`
+
+			ClPostgresSecretName string `yaml:"clPostgresSecretName"`
+			ClPostgresUserName   string `yaml:"clPostgresUserName"`
+			UPostgresSecretName  string `yaml:"uPostgresSecretName"`
+			UPostgresUserName    string `yaml:"uPostgresUserName"`
+		} `yaml:"postgresSecret"`
 	}
 
 	GrpcServer struct {

@@ -1,7 +1,9 @@
 package grpc_server
 
 import (
+	"context"
 	"fmt"
+	"github.com/mxmrykov/aster-oauth-service/internal/cache"
 	"github.com/mxmrykov/aster-oauth-service/internal/config"
 	oauth "github.com/mxmrykov/aster-oauth-service/internal/proto/gen"
 	"github.com/mxmrykov/aster-oauth-service/internal/store/postgres"
@@ -14,52 +16,57 @@ import (
 )
 
 type IGrpcServer interface {
-	Serve() error
-	GracefulStop()
+	Start(ctx context.Context) error
+	Stop(ctx context.Context) error
+
+	IVault() vault.IVault
+	ICache() cache.ICache
+	OAuth() *config.OAuth
+	Logger() *zerolog.Logger
+	ClientStore() postgres.IClientStore
+	UserStore() postgres.IUserStore
+	RedisDc() redis.IRedisDc
+	RedisTc() redis.IRedisTc
 }
 
 type GrpcServer struct {
+	svc         IGrpcServer
 	lis         net.Listener
 	S           *grpc.Server
 	MaxPollTime time.Duration
 }
 
-func NewServer(
-	dc redis.IRedisDc,
-	tc redis.IRedisTc,
-	vault vault.IVault,
-	cfg *config.OAuth,
-	l *zerolog.Logger,
-	IClientStore postgres.IClientStore,
-) (*GrpcServer, error) {
+func NewServer(svc IGrpcServer) (*GrpcServer, error) {
 	s := grpc.NewServer()
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.GrpcServer.Port))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", svc.OAuth().GrpcServer.Port))
 
 	if err != nil {
 		return nil, err
 	}
 
 	oauth.RegisterOAuthServer(s, &server{
-		IRedisDc:     dc,
-		IRedisTc:     tc,
-		IVault:       vault,
-		Cfg:          cfg,
-		Logger:       l,
-		IClientStore: IClientStore,
+		IRedisDc:     svc.RedisDc(),
+		IRedisTc:     svc.RedisTc(),
+		IVault:       svc.IVault(),
+		Cfg:          svc.OAuth(),
+		Logger:       svc.Logger(),
+		IClientStore: svc.ClientStore(),
+		IUserStore:   svc.UserStore(),
 	})
 
 	return &GrpcServer{
 		lis:         lis,
 		S:           s,
-		MaxPollTime: cfg.GrpcServer.MaxPollTime,
+		MaxPollTime: svc.OAuth().GrpcServer.MaxPollTime,
 	}, nil
 }
 
-func (s *GrpcServer) Serve() error {
+func (s *GrpcServer) Start(_ context.Context) error {
 	return s.S.Serve(s.lis)
 }
 
-func (s *GrpcServer) GracefulStop() {
+func (s *GrpcServer) Stop(_ context.Context) error {
 	s.S.GracefulStop()
+	return nil
 }

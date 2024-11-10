@@ -2,6 +2,7 @@ package grpc_server
 
 import (
 	"context"
+	"errors"
 	"github.com/mxmrykov/aster-oauth-service/internal/config"
 	oauth "github.com/mxmrykov/aster-oauth-service/internal/proto/gen"
 	"github.com/mxmrykov/aster-oauth-service/internal/store/postgres"
@@ -12,6 +13,7 @@ import (
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"time"
 )
 
 type server struct {
@@ -19,6 +21,7 @@ type server struct {
 	IRedisDc     redis.IRedisDc
 	IRedisTc     redis.IRedisTc
 	IClientStore postgres.IClientStore
+	IUserStore   postgres.IUserStore
 	IVault       vault.IVault
 	Cfg          *config.OAuth
 	Logger       *zerolog.Logger
@@ -84,7 +87,9 @@ func (s *server) Authorize(ctx context.Context, in *oauth.AuthorizeRequest) (
 		}, status.Error(codes.Internal, err.Error())
 	}
 
-	alive, err := s.IRedisDc.IsAlive(ctx, in.ASID)
+	_, err = s.IRedisDc.Get(ctx, in.ASID)
+
+	alive := errors.Is(err, redis.ErrorNotFound)
 
 	switch {
 	case !alive,
@@ -96,7 +101,7 @@ func (s *server) Authorize(ctx context.Context, in *oauth.AuthorizeRequest) (
 		}, status.Error(codes.Unauthenticated, err.Error())
 	}
 
-	isBanned, pwd, err := s.IClientStore.Authorize(ctx, in.IAID)
+	isBanned, pwd, err := s.IUserStore.Authorize(ctx, in.IAID)
 
 	switch {
 	case err != nil:
@@ -114,10 +119,28 @@ func (s *server) Authorize(ctx context.Context, in *oauth.AuthorizeRequest) (
 		}, status.Error(codes.Unauthenticated, "Incorrect password")
 	}
 
+	clientID, clientSecret, err := s.IClientStore.GetClient(ctx, in.IAID)
+
+	if err != nil {
+		s.Logger.Err(err).Send()
+		return &oauth.AuthorizeResponse{
+			Error: "Cannot get client",
+		}, status.Error(codes.Internal, err.Error())
+	}
+
+	oac := sid.New(in.IAID, time.Minute)
+
+	if err = s.IRedisDc.SetOAuthCode(ctx, oac, in.IAID); err != nil {
+		s.Logger.Err(err).Send()
+		return &oauth.AuthorizeResponse{
+			Error: "Cannot set oauth code",
+		}, status.Error(codes.Internal, "Cannot set oauth code")
+	}
+
 	return &oauth.AuthorizeResponse{
-		ClientID:     "",
-		ClientSecret: "",
-		OAuthCode:    "",
+		ClientID:     clientID,
+		ClientSecret: clientSecret,
+		OAuthCode:    oac,
 		Error:        "",
 	}, nil
 }

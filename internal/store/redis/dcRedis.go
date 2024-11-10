@@ -12,7 +12,8 @@ import (
 var ErrorNotFound = errors.New("not found")
 
 type IRedisDc interface {
-	Set(ctx context.Context, k, v string) error
+	SetConfirmCode(ctx context.Context, k, v string) error
+	SetOAuthCode(ctx context.Context, k, v string) error
 	IsAlive(ctx context.Context, k string) (bool, error)
 	Get(ctx context.Context, k string) (string, error)
 }
@@ -21,6 +22,7 @@ type RedisDc struct {
 	Client          *redis.Client
 	MaxPoolInterval time.Duration
 	oauthExp        time.Duration
+	confirmCodeExp  time.Duration
 }
 
 func NewRedisDc(cfg *config.DcRedis, user, password string) IRedisDc {

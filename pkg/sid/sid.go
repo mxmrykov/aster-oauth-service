@@ -18,7 +18,7 @@ type Sid struct {
 	Expires time.Time `json:"expires"`
 }
 
-func New(iaid string) string {
+func New(iaid string, dur time.Duration) string {
 	n := time.Now()
 	cs := md5.Sum(
 		[]byte(fmt.Sprintf("%s_%d", iaid, n.Unix())),
@@ -28,7 +28,7 @@ func New(iaid string) string {
 		Subscriber: iaid,
 		Checksum:   hex.EncodeToString(cs[:]),
 		SignDt:     n,
-		Expires:    n.Add(5 * time.Minute),
+		Expires:    n.Add(dur),
 	})
 
 	return base64.StdEncoding.EncodeToString(s)
