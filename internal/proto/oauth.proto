@@ -1,0 +1,23 @@
+// protoc --go_out=./internal/proto/gen --go-grpc_out=./internal/proto/gen internal/proto/oauth.proto
+syntax = "proto3";
+
+option go_package = "./";
+
+service OAuth {
+  rpc Authorize(AuthorizeRequest) returns (AuthorizeResponse);
+}
+
+message AuthorizeRequest {
+  string login = 1;
+  string password = 2;
+  string IAID = 3;
+  string confirmCode = 4;
+  string ASID = 5;
+}
+
+message AuthorizeResponse {
+  string clientID = 1;
+  string clientSecret = 2;
+  string OAuthCode = 3;
+  string error = 6;
+}
