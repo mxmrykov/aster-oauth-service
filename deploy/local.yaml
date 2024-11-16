@@ -25,7 +25,7 @@ vault:
   port: 8801
   clientTimeout: "10s"
   tokenRepo:
-    path: "/v1/secret/data/auth-api/tokens"
+    path: "/v1/secret/data/oauth-service/tokens"
     oAuthJwtSecretName: "oAuthJwtSecret"
     appJwtSecretName: "appJwtSecret"
   redisSecret:

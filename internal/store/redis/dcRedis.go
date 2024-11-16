@@ -4,15 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	"github.com/go-redis/redis/v8"
 	"github.com/mxmrykov/aster-oauth-service/internal/config"
-	"time"
 )
 
 var ErrorNotFound = errors.New("not found")
 
 type IRedisDc interface {
-	SetConfirmCode(ctx context.Context, k, v string) error
+	SetConfirmCode(ctx context.Context, k string, v int) error
 	SetOAuthCode(ctx context.Context, k, v string) error
 	IsAlive(ctx context.Context, k string) (bool, error)
 	Get(ctx context.Context, k string) (string, error)
@@ -30,7 +31,7 @@ func NewRedisDc(cfg *config.DcRedis, user, password string) IRedisDc {
 		Addr:     fmt.Sprintf("%s:%d", cfg.Host, cfg.Port),
 		Username: user,
 		Password: password,
-		DB:       0,
+		DB:       1,
 	})
 
 	return &RedisDc{

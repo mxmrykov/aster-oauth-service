@@ -1,10 +1,12 @@
 package service
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/gin-gonic/gin"
+	"github.com/mxmrykov/aster-oauth-service/pkg/utils"
+)
 
 func (s *Service) SetPhoneConfirmCode(ctx *gin.Context, phone string) error {
-	// TODO: realization of sms-code
-	code := "211004"
+	code := utils.GetConfirmCode()
 	return s.IRedisDc.SetConfirmCode(ctx, phone, code)
 }
 

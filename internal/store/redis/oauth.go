@@ -9,7 +9,7 @@ func (r *RedisDc) SetOAuthCode(ctx context.Context, k, v string) error {
 	return r.set(ctx, k, v, r.oauthExp)
 }
 
-func (r *RedisDc) SetConfirmCode(ctx context.Context, k, v string) error {
+func (r *RedisDc) SetConfirmCode(ctx context.Context, k string, v int) error {
 	return r.set(ctx, k, v, r.confirmCodeExp)
 }
 
@@ -35,7 +35,7 @@ func (r *RedisDc) Get(ctx context.Context, k string) (string, error) {
 	return r.Client.Get(ctx, k).Result()
 }
 
-func (r *RedisDc) set(ctx context.Context, k, v string, ttl time.Duration) error {
+func (r *RedisDc) set(ctx context.Context, k string, v interface{}, ttl time.Duration) error {
 	ctx, cancel := context.WithTimeout(ctx, r.MaxPoolInterval)
 
 	defer cancel()

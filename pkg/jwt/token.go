@@ -14,7 +14,7 @@ func ValidateXAuthToken(XAuthToken, signature string) (model.XAuthToken, error) 
 		XAuthToken,
 		&model.XAuthToken{},
 		func(token *jwt.Token) (interface{}, error) {
-			return signature, nil
+			return []byte(signature), nil
 		},
 	)
 

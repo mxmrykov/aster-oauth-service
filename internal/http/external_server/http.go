@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/mxmrykov/aster-oauth-service/internal/cache"
 	"github.com/mxmrykov/aster-oauth-service/internal/config"
@@ -11,7 +14,6 @@ import (
 	"github.com/mxmrykov/aster-oauth-service/internal/store/redis"
 	"github.com/mxmrykov/aster-oauth-service/pkg/clients/vault"
 	"github.com/rs/zerolog"
-	"net/http"
 )
 
 type IServer interface {
@@ -76,6 +78,13 @@ func NewServer(logger *zerolog.Logger, svc IServer) *Server {
 
 func (s *Server) configureRouter() {
 	s.router.Use(s.footPrintAuth)
+	s.router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000", "https://aster.ru"},
+		AllowMethods:     []string{"POST", "GET", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-type", "X-TempAuth-Token"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
 
 	authenticationGroup := s.router.Group(authenticationGroupV1)
 	authenticationGroup.Use(s.authenticationMw)
