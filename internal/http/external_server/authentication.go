@@ -15,27 +15,41 @@ func (s *Server) authHandshake(ctx *gin.Context) {
 func (s *Server) getPhoneCode(ctx *gin.Context) {
 	request := new(model.GetPhoneCodeRequest)
 
-	if err := ctx.ShouldBindQuery(&request); err != nil {
+	if err := ctx.ShouldBindQuery(request); err != nil {
 		s.svc.Logger().Err(err).Msg("Failed to bind query params")
 		responize.R(ctx, nil, http.StatusBadRequest, "Invalid request", true)
 		return
 	}
 
+	logger := s.svc.Logger().With().Str("phone", request.Phone).Logger()
 	e, err := s.svc.IfPhoneInUse(ctx, request.Phone)
 
 	switch {
 	case err != nil:
-		s.svc.Logger().Err(err).Msg("Failed to check if phone is in use")
+		logger.Err(err).Msg("Failed to check if phone is in use")
 		responize.R(ctx, nil, http.StatusInternalServerError, "Failed to check if phone is in use", true)
 		return
 	case e:
-		s.svc.Logger().Err(err).Msg("Phone already in use")
+		logger.Err(err).Msg("Phone already in use")
 		responize.R(ctx, nil, http.StatusBadRequest, "Phone already in use", true)
 		return
 	}
 
+	sent, err := s.svc.IfCodeSent(ctx, request.Phone)
+
+	switch {
+	case err != nil:
+		logger.Err(err).Msg("Failed to check if code sent")
+		responize.R(ctx, nil, http.StatusInternalServerError, "Failed to check if code sent", true)
+		return
+	case sent:
+		logger.Error().Msg("Code was already sent")
+		responize.R(ctx, nil, http.StatusBadRequest, "Code was already sent", true)
+		return
+	}
+
 	if err = s.svc.SetPhoneConfirmCode(ctx, request.Phone); err != nil {
-		s.svc.Logger().Err(err).Msg("Failed to set phone confirm code")
+		logger.Err(err).Msg("Failed to set phone confirm code")
 		responize.R(ctx, nil, http.StatusInternalServerError, "Failed to set phone confirm code", true)
 		return
 	}
@@ -88,7 +102,7 @@ func (s *Server) signupHandshake(ctx *gin.Context) {
 func (s *Server) confirmCode(ctx *gin.Context) {
 	request := new(model.ConfirmPhoneCodeRequest)
 
-	if err := ctx.ShouldBindQuery(&request); err != nil {
+	if err := ctx.ShouldBindJSON(&request); err != nil {
 		s.svc.Logger().Err(err).Msg("Failed to bind query params")
 		responize.R(ctx, nil, http.StatusBadRequest, "Invalid request", true)
 		return

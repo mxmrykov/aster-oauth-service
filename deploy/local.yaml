@@ -4,6 +4,7 @@ dcRedis:
   port: 8803
   maxPoolInterval: 5s
   oauthCodeExp: 1m
+  confirmCodeExp: 3m
 tcRedis:
   host: "localhost"
   port: 8805
@@ -21,7 +22,7 @@ userPostgres:
   dataBaseName: "user-db"
   maxPoolInterval: 10s
 vault:
-  host: "localhost"
+  host: "83.220.175.189"
   port: 8801
   clientTimeout: "10s"
   tokenRepo:

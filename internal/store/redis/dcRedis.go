@@ -38,5 +38,6 @@ func NewRedisDc(cfg *config.DcRedis, user, password string) IRedisDc {
 		Client:          rdb,
 		MaxPoolInterval: cfg.MaxPoolInterval,
 		oauthExp:        cfg.OAuthCodeExp,
+		confirmCodeExp:  cfg.ConfirmCodeExp,
 	}
 }

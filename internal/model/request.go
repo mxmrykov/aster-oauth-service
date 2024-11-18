@@ -8,7 +8,7 @@ type SignupRequest struct {
 }
 
 type GetPhoneCodeRequest struct {
-	Phone string `binding:"required" query:"phone"`
+	Phone string `binding:"required" form:"p"`
 }
 
 type ConfirmPhoneCodeRequest struct {

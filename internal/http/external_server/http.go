@@ -30,6 +30,7 @@ type IServer interface {
 	RedisTc() redis.IRedisTc
 
 	SetPhoneConfirmCode(ctx *gin.Context, phone string) error
+	IfCodeSent(ctx *gin.Context, phone string) (bool, error)
 	IfPhoneInUse(ctx *gin.Context, phone string) (bool, error)
 	IfLoginInUse(ctx *gin.Context, login string) (bool, error)
 	GetPhoneConfirmCode(ctx *gin.Context, phone string) (string, error)

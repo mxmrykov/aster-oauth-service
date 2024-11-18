@@ -30,6 +30,7 @@ type (
 
 		MaxPoolInterval time.Duration `yaml:"maxPoolInterval"`
 		OAuthCodeExp    time.Duration `yaml:"oauthCodeExp"`
+		ConfirmCodeExp  time.Duration `yaml:"confirmCodeExp"`
 	}
 
 	TcRedis struct {
