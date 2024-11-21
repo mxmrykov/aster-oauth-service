@@ -12,6 +12,8 @@ type XAuthToken struct {
 
 type AccessRefreshToken struct {
 	Iaid          string `json:"IAID"`
+	Eaid          string `json:"EAID"`
+	Signature     string `json:"signature"`
 	SignatureDate string `json:"signatureDate"`
 	jwt.StandardClaims
 }

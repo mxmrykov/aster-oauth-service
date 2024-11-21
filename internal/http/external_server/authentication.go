@@ -58,45 +58,47 @@ func (s *Server) getPhoneCode(ctx *gin.Context) {
 }
 
 func (s *Server) signupHandshake(ctx *gin.Context) {
-	_, mwLogin, request := ctx.GetString("asid"), ctx.GetString("login"), new(model.SignupRequest)
+	request := new(model.SignupRequest)
+	err := ctx.ShouldBindJSON(&request)
 
-	if err := ctx.ShouldBindJSON(&request); err != nil {
+	if err != nil {
 		s.svc.Logger().Err(err).Msg("Failed to bind JSON")
 		responize.R(ctx, nil, http.StatusBadRequest, "Invalid request", true)
 		return
 	}
 
-	if mwLogin != request.Login {
-		s.svc.Logger().Error().Msg("Incorrect token login")
-		responize.R(ctx, nil, http.StatusBadRequest, "Invalid request", true)
+	if err = s.svc.ValidateUserSignup(ctx, request); err != nil {
+		s.svc.Logger().Err(err).Msg("Failed to validate user signup")
+		responize.R(ctx, nil, http.StatusBadRequest, err.Error(), true)
 		return
 	}
 
-	e, err := s.svc.IfPhoneInUse(ctx, request.Phone)
+	dtoResponse, err := s.svc.SignupUser(ctx, request)
 
-	switch {
-	case err != nil:
-		s.svc.Logger().Err(err).Msg("Failed to check if phone is in use")
-		responize.R(ctx, nil, http.StatusInternalServerError, "Failed to check if phone is in use", true)
-		return
-	case e:
-		s.svc.Logger().Err(err).Msg("Phone already in use")
-		responize.R(ctx, nil, http.StatusBadRequest, "Phone already in use", true)
+	if err != nil {
+		s.svc.Logger().Err(err).Msg("Failed to sign up user")
+		responize.R(ctx, nil, http.StatusInternalServerError, "Failed to sign up user", true)
 		return
 	}
 
-	e, err = s.svc.IfLoginInUse(ctx, request.Login)
+	http.SetCookie(ctx.Writer, &http.Cookie{
+		Name:     "X-Refresh-Token",
+		Value:    dtoResponse.RefreshToken,
+		Path:     "/",
+		MaxAge:   2_592_000,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
 
-	switch {
-	case err != nil:
-		s.svc.Logger().Err(err).Msg("Failed to check if login is in use")
-		responize.R(ctx, nil, http.StatusInternalServerError, "Failed to check if login is in use", true)
-		return
-	case e:
-		s.svc.Logger().Err(err).Msg("Login already in use")
-		responize.R(ctx, nil, http.StatusBadRequest, "Login already in use", true)
-		return
-	}
+	responize.R(ctx, model.SignUpResponse{
+		Signature:   dtoResponse.Signature,
+		AccessToken: dtoResponse.AccessToken,
+	},
+		http.StatusOK,
+		"Successfully signed up user",
+		false,
+	)
 }
 
 func (s *Server) confirmCode(ctx *gin.Context) {
@@ -131,6 +133,12 @@ func (s *Server) confirmCode(ctx *gin.Context) {
 	case strconv.Itoa(request.Code) != code:
 		s.svc.Logger().Err(err).Msg("Incorrect confirm code")
 		responize.R(ctx, nil, http.StatusBadRequest, "Incorrect confirm code", true)
+		return
+	}
+
+	if err = s.svc.SetPhoneConfirmed(ctx, request.Phone); err != nil {
+		s.svc.Logger().Err(err).Msg("Failed to set phone confirmed")
+		responize.R(ctx, nil, http.StatusInternalServerError, "Failed to set phone confirmed", true)
 		return
 	}
 

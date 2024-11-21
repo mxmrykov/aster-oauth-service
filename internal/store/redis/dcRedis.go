@@ -13,9 +13,8 @@ import (
 var ErrorNotFound = errors.New("not found")
 
 type IRedisDc interface {
-	SetConfirmCode(ctx context.Context, k string, v int) error
+	SetConfirmCode(ctx context.Context, k, v string) error
 	SetOAuthCode(ctx context.Context, k, v string) error
-	IsAlive(ctx context.Context, k string) (bool, error)
 	Get(ctx context.Context, k string) (string, error)
 }
 

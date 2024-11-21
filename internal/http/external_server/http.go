@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/mxmrykov/aster-oauth-service/internal/model"
 	"net/http"
 
 	"github.com/gin-contrib/cors"
@@ -34,6 +35,9 @@ type IServer interface {
 	IfPhoneInUse(ctx *gin.Context, phone string) (bool, error)
 	IfLoginInUse(ctx *gin.Context, login string) (bool, error)
 	GetPhoneConfirmCode(ctx *gin.Context, phone string) (string, error)
+	SetPhoneConfirmed(ctx *gin.Context, phone string) error
+	ValidateUserSignup(ctx *gin.Context, r *model.SignupRequest) error
+	SignupUser(ctx *gin.Context, r *model.SignupRequest) (*model.SignUpDTO, error)
 }
 
 type Server struct {

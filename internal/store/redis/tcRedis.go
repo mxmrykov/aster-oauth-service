@@ -11,7 +11,6 @@ import (
 type IRedisTc interface {
 	SetToken(ctx context.Context, signature, token, tp string) error
 	GetToken(ctx context.Context, signature, tp string) (string, error)
-	IsSignatureAlive(ctx context.Context, signature, tp string) (bool, error)
 }
 
 type RedisTc struct {

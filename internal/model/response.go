@@ -6,3 +6,8 @@ type Response struct {
 	Message string      `json:"message"`
 	Error   bool        `json:"error"`
 }
+
+type SignUpResponse struct {
+	Signature   string `json:"signature"`
+	AccessToken string `json:"access_token"`
+}

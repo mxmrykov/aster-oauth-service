@@ -2,6 +2,23 @@ package postgres
 
 import (
 	"context"
+	_ "embed"
+	"github.com/jackc/pgx/v5"
+	"github.com/mxmrykov/aster-oauth-service/internal/model"
+)
+
+var (
+	//go:embed queries/authorize.sql
+	authorizeQuery string
+
+	//go:embed queries/isPhoneInUse.sql
+	isPhoneInUseQuery string
+
+	//go:embed queries/isLoginInUse.sql
+	isLoginInUseQuery string
+
+	//go:embed queries/signupUser.sql
+	signupQuery string
 )
 
 func (u *UserStore) Authorize(ctx context.Context, iaid string) (
@@ -11,20 +28,12 @@ func (u *UserStore) Authorize(ctx context.Context, iaid string) (
 
 	defer cancel()
 
-	const query = `
-	select s.is_banned,
-       p.value
-	from users.signature s
-         left join secrets.passwords p on s.iaid = p.iaid
-	where s.iaid = $1;
-	`
-
 	var (
 		banned bool
 		pass   string
 	)
 
-	if err := u.pool.QueryRow(ctx, query, iaid).Scan(&banned, &pass); err != nil {
+	if err := u.pool.QueryRow(ctx, authorizeQuery, iaid).Scan(&banned, &pass); err != nil {
 		return false, "", err
 	}
 
@@ -36,12 +45,8 @@ func (u *UserStore) IsPhoneInUse(ctx context.Context, phone string) (bool, error
 
 	defer cancel()
 
-	const query = `
-	select exists(select * from users.signature where phone = $1) as e;
-	`
-
 	var e bool
-	err := u.pool.QueryRow(ctx, query, phone).Scan(&e)
+	err := u.pool.QueryRow(ctx, isPhoneInUseQuery, phone).Scan(&e)
 
 	return e, err
 }
@@ -51,12 +56,18 @@ func (u *UserStore) IsLoginInUse(ctx context.Context, login string) (bool, error
 
 	defer cancel()
 
-	const query = `
-	select exists(select * from users.signature where login = $1) as e;
-	`
-
 	var e bool
-	err := u.pool.QueryRow(ctx, query, login).Scan(&e)
+	err := u.pool.QueryRow(ctx, isLoginInUseQuery, login).Scan(&e)
 
 	return e, err
+}
+
+func (u *UserStore) SignUpUser(ctx context.Context,
+	tx pgx.Tx,
+	e model.ExternalSignUpRequest,
+	i model.InternalSignUpRequest,
+) error {
+	_, err := tx.Exec(ctx, signupQuery, e, i)
+
+	return err
 }
