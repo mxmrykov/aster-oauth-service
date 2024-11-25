@@ -4,11 +4,11 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/gamebtc/devicedetector"
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 	"github.com/mxmrykov/aster-oauth-service/internal/model"
+	"github.com/mxmrykov/aster-oauth-service/pkg/hashing"
 	"github.com/mxmrykov/aster-oauth-service/pkg/jwt"
 	"github.com/mxmrykov/aster-oauth-service/pkg/utils"
 	"strconv"
@@ -103,24 +103,18 @@ func (s *Service) SignupUser(ctx *gin.Context, r *model.SignupRequest) (*model.S
 		return nil, err
 	}
 
-	dd, err := devicedetector.NewDeviceDetector("regexes")
-	if err != nil {
-		return nil, err
-	}
-
-	Eaid, Iaid, Info, signature :=
+	Eaid, Iaid, signature :=
 		strconv.FormatInt(time.Now().Unix(), 10),
 		base64.StdEncoding.EncodeToString([]byte(uuid.New().String())),
-		dd.Parse(ctx.Request.UserAgent()),
 		strings.ToUpper(uuid.New().String())
 
-	accessToken, err := s.genToken(Iaid, oauthSecret, Eaid, signature, true)
+	accessToken, err := s.GenToken(Iaid, oauthSecret, Eaid, signature, true)
 
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := s.genToken(Iaid, oauthSecret, signature, Eaid)
+	refreshToken, err := s.GenToken(Iaid, oauthSecret, signature, Eaid)
 
 	if err != nil {
 		return nil, err
@@ -132,11 +126,15 @@ func (s *Service) SignupUser(ctx *gin.Context, r *model.SignupRequest) (*model.S
 		return nil, err
 	}
 
-	cltx, err := s.IUserStore.BeginTx(ctx)
+	cltx, err := s.IClientStore.BeginTx(ctx)
 
 	if err != nil {
 		return nil, err
 	}
+
+	device := utils.GetDeviceInfo(ctx.Request.UserAgent())
+
+	pwd, _ := hashing.New(r.Password)
 
 	if err = s.IUserStore.SignUpUser(ctx, utx,
 		model.ExternalSignUpRequest{
@@ -145,12 +143,12 @@ func (s *Service) SignupUser(ctx *gin.Context, r *model.SignupRequest) (*model.S
 			Name:     r.Name,
 			Login:    r.Login,
 			Phone:    r.Phone,
-			Password: r.Password,
+			Password: pwd,
 		},
 		model.InternalSignUpRequest{
 			Ip:             ctx.Request.RemoteAddr,
-			DeviceName:     fmt.Sprintf("%s %s, %s", Info.GetOs().Name, Info.GetOs().Version, Info.Model),
-			DevicePlatform: fmt.Sprintf("%s, %s", Info.GetClient().Name, Info.GetClient().Version),
+			DeviceName:     fmt.Sprintf("%s %s, %s", device.OSName, device.OSVersion, device.DeviceName),
+			DevicePlatform: fmt.Sprintf("%s, %s", device.Client, device.ClientVersion),
 		}); err != nil {
 		defer func() {
 			_ = cltx.Rollback(ctx)
@@ -211,7 +209,7 @@ func (s *Service) approveSignupAsid(ctx *gin.Context, asid, login string) (bool,
 	return true, nil
 }
 
-func (s *Service) genToken(Iaid, Eaid, oauthSecret, signature string, access ...bool) (string, error) {
+func (s *Service) GenToken(Iaid, Eaid, oauthSecret, signature string, access ...bool) (string, error) {
 	return jwt.NewAccessRefreshToken(
 		model.AccessRefreshToken{
 			Iaid:      Iaid,

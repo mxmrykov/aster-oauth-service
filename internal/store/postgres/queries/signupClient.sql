@@ -7,7 +7,8 @@ with cl as (select iaid,
                       client_secret text))
 insert
 into profiles.secrets (iaid, clientid, clientsecret, update_dt)
-values (cl.iaid,
-        cl.client_id,
-        cl.client_secret,
-        now()::timestamptz);
+select iaid,
+       client_id,
+       client_secret,
+       now()::timestamptz
+from cl;

@@ -9,7 +9,13 @@ import (
 )
 
 func (s *Server) authHandshake(ctx *gin.Context) {
+	request := new(model.AuthRequest)
 
+	if err := ctx.ShouldBindJSON(request); err != nil {
+		s.svc.Logger().Err(err).Msg("Failed to bind params")
+		responize.R(ctx, nil, http.StatusBadRequest, "Invalid request", true)
+		return
+	}
 }
 
 func (s *Server) getPhoneCode(ctx *gin.Context) {

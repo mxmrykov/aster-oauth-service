@@ -11,6 +11,7 @@ import (
 type IRedisTc interface {
 	SetToken(ctx context.Context, signature, token, tp string) error
 	GetToken(ctx context.Context, signature, tp string) (string, error)
+	DeleteToken(ctx context.Context, signature, tp string) error
 }
 
 type RedisTc struct {

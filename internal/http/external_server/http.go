@@ -38,6 +38,9 @@ type IServer interface {
 	SetPhoneConfirmed(ctx *gin.Context, phone string) error
 	ValidateUserSignup(ctx *gin.Context, r *model.SignupRequest) error
 	SignupUser(ctx *gin.Context, r *model.SignupRequest) (*model.SignUpDTO, error)
+
+	GenToken(Iaid, Eaid, oauthSecret, signature string, access ...bool) (string, error)
+	Exit(ctx *gin.Context, signature, iaid string, id int)
 }
 
 type Server struct {
@@ -56,7 +59,7 @@ const (
 	registrationEndpoint               = "/signup/handshake"
 	registrationGetConfirmCodeEndpoint = "/signup/confirm/code"
 
-	authorizeEndpoint = "/authorize"
+	exitSessionEndpoint = "/exit/session"
 )
 
 func NewServer(logger *zerolog.Logger, svc IServer) *Server {
@@ -86,7 +89,7 @@ func (s *Server) configureRouter() {
 	s.router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000", "https://aster.ru"},
 		AllowMethods:     []string{"POST", "GET", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-type", "X-TempAuth-Token"},
+		AllowHeaders:     []string{"Origin", "Content-type", "X-TempAuth-Token", "X-Access-Token"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 	}))
@@ -100,8 +103,7 @@ func (s *Server) configureRouter() {
 
 	authorizationGroup := s.router.Group(authorizationGroupV1)
 	authorizationGroup.Use(s.authorizationMw)
-	authorizationGroup.POST(authorizeEndpoint, s.authenticate)
-
+	authorizationGroup.POST(exitSessionEndpoint, s.exitSession)
 }
 
 func recoveryFunc(logger *zerolog.Logger) gin.RecoveryFunc {

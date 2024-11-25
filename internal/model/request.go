@@ -7,6 +7,11 @@ type SignupRequest struct {
 	Password string `binding:"required" json:"password" form:"password"`
 }
 
+type AuthRequest struct {
+	Login    string `binding:"required" json:"login"    form:"login"`
+	Password string `binding:"required" json:"password" form:"password"`
+}
+
 type GetPhoneCodeRequest struct {
 	Phone string `binding:"required" form:"p"`
 }
@@ -14,4 +19,8 @@ type GetPhoneCodeRequest struct {
 type ConfirmPhoneCodeRequest struct {
 	Phone string `binding:"required" json:"phone" form:"phone"`
 	Code  int    `binding:"required" json:"code"  form:"code"`
+}
+
+type ExitRequest struct {
+	Id int `binding:"required" form:"id"`
 }

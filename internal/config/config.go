@@ -67,7 +67,7 @@ type (
 		TokenRepo struct {
 			Path string `yaml:"path"`
 
-			OAuthJwtSecretName string `yaml:"oauthJwtSecretName"`
+			OAuthJwtSecretName string `yaml:"oAuthJwtSecretName"`
 			AppJwtSecretName   string `yaml:"appJwtSecretName"`
 		} `yaml:"tokenRepo"`
 

@@ -13,6 +13,9 @@ var (
 
 	//go:embed queries/putClientData.sql
 	putClientDataQuery string
+
+	//go:embed queries/signupClient.sql
+	signUpClient string
 )
 
 func (c *ClientStore) GetClient(ctx context.Context, iaid string) (string, string, error) {
@@ -40,7 +43,7 @@ func (c *ClientStore) PutClient(ctx context.Context, iaid, clientID, clientSecre
 }
 
 func (c *ClientStore) SetClient(ctx context.Context, tx pgx.Tx, cr model.ClientSignUpRequest) error {
-	_, err := tx.Exec(ctx, signupQuery, cr)
+	_, err := tx.Exec(ctx, signUpClient, [1]model.ClientSignUpRequest{cr})
 
 	return err
 }

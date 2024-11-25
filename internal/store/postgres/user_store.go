@@ -19,6 +19,8 @@ type IUserStore interface {
 		e model.ExternalSignUpRequest,
 		i model.InternalSignUpRequest,
 	) error
+	Exit(ctx context.Context, iaid string, id int) error
+
 	BeginTx(ctx context.Context) (pgx.Tx, error)
 }
 
