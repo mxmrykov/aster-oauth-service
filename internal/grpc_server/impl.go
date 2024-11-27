@@ -2,7 +2,8 @@ package grpc_server
 
 import (
 	"context"
-	"errors"
+	"time"
+
 	"github.com/mxmrykov/aster-oauth-service/internal/config"
 	oauth "github.com/mxmrykov/aster-oauth-service/internal/proto/gen"
 	"github.com/mxmrykov/aster-oauth-service/internal/store/postgres"
@@ -13,7 +14,6 @@ import (
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"time"
 )
 
 type server struct {
@@ -45,37 +45,37 @@ func (s *server) Authorize(ctx context.Context, in *oauth.AuthorizeRequest) (
 		s.Logger.Err(err).Send()
 		return &oauth.AuthorizeResponse{
 			Error: "confirm code is required",
-		}, err
+		}, nil
 	case in.ConfirmCode != realCc:
 		err = status.Error(codes.InvalidArgument, "confirm code is incorrect")
 		s.Logger.Err(err).Send()
 		return &oauth.AuthorizeResponse{
 			Error: "confirm code is incorrect",
-		}, err
+		}, nil
 	case in.Login == "":
 		err = status.Error(codes.InvalidArgument, "login is required")
 		s.Logger.Err(err).Send()
 		return &oauth.AuthorizeResponse{
 			Error: "login is required",
-		}, err
+		}, nil
 	case in.Password == "":
 		err = status.Error(codes.InvalidArgument, "password is required")
 		s.Logger.Err(err).Send()
 		return &oauth.AuthorizeResponse{
 			Error: "password is required",
-		}, err
+		}, nil
 	case in.IAID == "":
 		err = status.Error(codes.InvalidArgument, "IAID is required")
 		s.Logger.Err(err).Send()
 		return &oauth.AuthorizeResponse{
 			Error: "IAID is required",
-		}, err
+		}, nil
 	case in.ASID == "":
 		err = status.Error(codes.InvalidArgument, "ASID is required")
 		s.Logger.Err(err).Send()
 		return &oauth.AuthorizeResponse{
 			Error: "ASID is required",
-		}, err
+		}, nil
 	}
 
 	innerIaid, err := s.IRedisDc.Get(ctx, in.ASID)
@@ -84,57 +84,55 @@ func (s *server) Authorize(ctx context.Context, in *oauth.AuthorizeRequest) (
 		s.Logger.Err(err).Send()
 		return &oauth.AuthorizeResponse{
 			Error: "No such session",
-		}, status.Error(codes.Internal, err.Error())
+		}, nil
 	}
 
-	_, err = s.IRedisDc.Get(ctx, in.ASID)
-
-	alive := errors.Is(err, redis.ErrorNotFound)
+	iaid, err := sid.Validate(in.IAID)
 
 	switch {
-	case !alive,
-		innerIaid != in.IAID,
-		sid.Validate(in.ASID) != nil:
-		s.Logger.Err(err).Send()
+	case iaid.Subscriber != innerIaid,
+		err != nil:
 		return &oauth.AuthorizeResponse{
 			Error: "Auth error",
-		}, status.Error(codes.Unauthenticated, err.Error())
+		}, nil
 	}
 
-	isBanned, pwd, err := s.IUserStore.Authorize(ctx, in.IAID)
+	isBanned, pwd, err := s.IUserStore.Authorize(ctx, iaid.Subscriber)
 
 	switch {
 	case err != nil:
 		s.Logger.Err(err).Send()
-		return nil, status.Error(codes.Internal, err.Error())
+		return &oauth.AuthorizeResponse{
+			Error: "No such user",
+		}, nil
 	case isBanned:
 		s.Logger.Err(err).Send()
 		return &oauth.AuthorizeResponse{
 			Error: "User is banned",
-		}, status.Error(codes.PermissionDenied, "User is banned")
+		}, nil
 	case !hashing.Check(in.Password, pwd):
 		s.Logger.Err(err).Send()
 		return &oauth.AuthorizeResponse{
 			Error: "Incorrect password",
-		}, status.Error(codes.Unauthenticated, "Incorrect password")
+		}, nil
 	}
 
-	clientID, clientSecret, err := s.IClientStore.GetClient(ctx, in.IAID)
+	clientID, clientSecret, err := s.IClientStore.GetClient(ctx, innerIaid)
 
 	if err != nil {
 		s.Logger.Err(err).Send()
 		return &oauth.AuthorizeResponse{
 			Error: "Cannot get client",
-		}, status.Error(codes.Internal, err.Error())
+		}, nil
 	}
 
 	oac := sid.New(in.IAID, time.Minute)
 
-	if err = s.IRedisDc.SetOAuthCode(ctx, oac, in.IAID); err != nil {
+	if err = s.IRedisDc.SetOAuthCode(ctx, oac, innerIaid); err != nil {
 		s.Logger.Err(err).Send()
 		return &oauth.AuthorizeResponse{
 			Error: "Cannot set oauth code",
-		}, status.Error(codes.Internal, "Cannot set oauth code")
+		}, nil
 	}
 
 	return &oauth.AuthorizeResponse{

@@ -2,10 +2,11 @@ package postgres
 
 import (
 	"context"
+	"time"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/mxmrykov/aster-oauth-service/internal/model"
-	"time"
 )
 
 type IUserStore interface {
@@ -20,6 +21,8 @@ type IUserStore interface {
 		i model.InternalSignUpRequest,
 	) error
 	Exit(ctx context.Context, iaid string, id int) error
+	EnterSession(ctx context.Context, i model.EnterSession) error
+	ExtractEaid(ctx context.Context, iaid string) (int, string, error)
 
 	BeginTx(ctx context.Context) (pgx.Tx, error)
 }

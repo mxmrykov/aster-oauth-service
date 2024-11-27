@@ -8,8 +8,9 @@ type SignupRequest struct {
 }
 
 type AuthRequest struct {
-	Login    string `binding:"required" json:"login"    form:"login"`
-	Password string `binding:"required" json:"password" form:"password"`
+	ClientID     string `binding:"required" json:"clientID"     form:"clientID"`
+	ClientSecret string `binding:"required" json:"clientSecret" form:"clientSecret"`
+	OAuthCode    string `binding:"required" json:"OAuthCode"    form:"OAuthCode"`
 }
 
 type GetPhoneCodeRequest struct {

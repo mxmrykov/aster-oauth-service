@@ -28,3 +28,7 @@ func (r *RedisDc) set(ctx context.Context, k string, v interface{}, ttl time.Dur
 
 	return r.Client.Set(ctx, k, v, ttl).Err()
 }
+
+func (r *RedisDc) SetIAID(ctx context.Context, k, v string) error {
+	return r.set(ctx, k, v, -1)
+}

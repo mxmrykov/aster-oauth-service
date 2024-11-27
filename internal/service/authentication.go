@@ -4,6 +4,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
@@ -11,9 +15,6 @@ import (
 	"github.com/mxmrykov/aster-oauth-service/pkg/hashing"
 	"github.com/mxmrykov/aster-oauth-service/pkg/jwt"
 	"github.com/mxmrykov/aster-oauth-service/pkg/utils"
-	"strconv"
-	"strings"
-	"time"
 )
 
 func (s *Service) SetPhoneConfirmCode(ctx *gin.Context, phone string) error {
@@ -96,7 +97,7 @@ func (s *Service) ValidateUserSignup(ctx *gin.Context, r *model.SignupRequest) e
 	return nil
 }
 
-func (s *Service) SignupUser(ctx *gin.Context, r *model.SignupRequest) (*model.SignUpDTO, error) {
+func (s *Service) SignupUser(ctx *gin.Context, r *model.SignupRequest) (*model.AuthDTO, error) {
 	oauthSecret, err := s.Vault.GetSecret(ctx, s.Cfg.Vault.TokenRepo.Path, s.Cfg.Vault.TokenRepo.OAuthJwtSecretName)
 
 	if err != nil {
@@ -167,6 +168,24 @@ func (s *Service) SignupUser(ctx *gin.Context, r *model.SignupRequest) (*model.S
 		return nil, err
 	}
 
+	if err = s.RedisTc().SetToken(ctx, signature, accessToken, "access"); err != nil {
+		_ = cltx.Rollback(ctx)
+		_ = utx.Rollback(ctx)
+		return nil, err
+	}
+
+	if err = s.RedisTc().SetToken(ctx, signature, refreshToken, "refresh"); err != nil {
+		_ = cltx.Rollback(ctx)
+		_ = utx.Rollback(ctx)
+		return nil, err
+	}
+
+	if err = s.RedisDc().SetIAID(ctx, r.Login, Iaid); err != nil {
+		_ = cltx.Rollback(ctx)
+		_ = utx.Rollback(ctx)
+		return nil, err
+	}
+
 	if err = utx.Commit(ctx); err != nil {
 		return nil, err
 	}
@@ -175,15 +194,7 @@ func (s *Service) SignupUser(ctx *gin.Context, r *model.SignupRequest) (*model.S
 		return nil, err
 	}
 
-	if err = s.RedisTc().SetToken(ctx, signature, accessToken, "access"); err != nil {
-		return nil, err
-	}
-
-	if err = s.RedisTc().SetToken(ctx, signature, refreshToken, "refresh"); err != nil {
-		return nil, err
-	}
-
-	return &model.SignUpDTO{
+	return &model.AuthDTO{
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
 		Signature:    signature,

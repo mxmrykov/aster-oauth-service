@@ -20,3 +20,8 @@ type ClientSignUpRequest struct {
 	ClientId     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
 }
+
+type EnterSession struct {
+	Iaid string `json:"iaid"`
+	InternalSignUpRequest
+}

@@ -17,3 +17,10 @@ type AccessRefreshToken struct {
 	SignatureDate string `json:"signatureDate"`
 	jwt.StandardClaims
 }
+
+type SidToken struct {
+	Iaid          string `json:"IAID"`
+	Asid          string `json:"ASID"`
+	SignatureDate string `json:"signatureDate"`
+	jwt.StandardClaims
+}

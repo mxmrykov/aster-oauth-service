@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/mxmrykov/aster-oauth-service/internal/model"
 	"net/http"
+
+	"github.com/mxmrykov/aster-oauth-service/internal/model"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -37,10 +38,12 @@ type IServer interface {
 	GetPhoneConfirmCode(ctx *gin.Context, phone string) (string, error)
 	SetPhoneConfirmed(ctx *gin.Context, phone string) error
 	ValidateUserSignup(ctx *gin.Context, r *model.SignupRequest) error
-	SignupUser(ctx *gin.Context, r *model.SignupRequest) (*model.SignUpDTO, error)
+	SignupUser(ctx *gin.Context, r *model.SignupRequest) (*model.AuthDTO, error)
 
 	GenToken(Iaid, Eaid, oauthSecret, signature string, access ...bool) (string, error)
 	Exit(ctx *gin.Context, signature, iaid string, id int)
+	ValidateClientAuth(ctx context.Context, r *model.AuthRequest, iaid string) error
+	ResourceOwnerAuthorize(ctx *gin.Context, iaid string) (*model.AuthDTO, error)
 }
 
 type Server struct {
@@ -55,9 +58,9 @@ const (
 	// authorizationGroupV1 - авторизованные пользователи, работаем с токенами
 	authorizationGroupV1 = "oauth/api/v1/authorization"
 
-	authorizationEndpoint              = "/auth/handshake"
-	registrationEndpoint               = "/signup/handshake"
-	registrationGetConfirmCodeEndpoint = "/signup/confirm/code"
+	authorizationEndpoint              = "/handshake"
+	registrationEndpoint               = "/handshake"
+	registrationGetConfirmCodeEndpoint = "/confirm/code"
 
 	exitSessionEndpoint = "/exit/session"
 )
@@ -89,21 +92,27 @@ func (s *Server) configureRouter() {
 	s.router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000", "https://aster.ru"},
 		AllowMethods:     []string{"POST", "GET", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-type", "X-TempAuth-Token", "X-Access-Token"},
+		AllowHeaders:     []string{"Origin", "Content-type", "X-TempAuth-Token", "X-Access-Token", "X-Auth-Token"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 	}))
 
 	authenticationGroup := s.router.Group(authenticationGroupV1)
-	authenticationGroup.Use(s.authenticationMw)
-	authenticationGroup.POST(authorizationEndpoint, s.authHandshake)
-	authenticationGroup.POST(registrationEndpoint, s.signupHandshake)
-	authenticationGroup.GET(registrationGetConfirmCodeEndpoint, s.getPhoneCode)
-	authenticationGroup.POST(registrationGetConfirmCodeEndpoint, s.confirmCode)
+
+	aauth := authenticationGroup.Group("/auth")
+	aauth.Use(s.internalAuthMiddleWare)
+	aauth.POST(authorizationEndpoint, s.authHandshake)
+
+	asignup := authenticationGroup.Group("/signup")
+	asignup.Use(s.authenticationMw)
+	asignup.POST(registrationEndpoint, s.signupHandshake)
+	asignup.GET(registrationGetConfirmCodeEndpoint, s.getPhoneCode)
+	asignup.POST(registrationGetConfirmCodeEndpoint, s.confirmCode)
 
 	authorizationGroup := s.router.Group(authorizationGroupV1)
 	authorizationGroup.Use(s.authorizationMw)
 	authorizationGroup.POST(exitSessionEndpoint, s.exitSession)
+
 }
 
 func recoveryFunc(logger *zerolog.Logger) gin.RecoveryFunc {

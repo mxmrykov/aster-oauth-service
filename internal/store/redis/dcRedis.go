@@ -15,6 +15,7 @@ var ErrorNotFound = errors.New("not found")
 type IRedisDc interface {
 	SetConfirmCode(ctx context.Context, k, v string) error
 	SetOAuthCode(ctx context.Context, k, v string) error
+	SetIAID(ctx context.Context, k, v string) error
 	Get(ctx context.Context, k string) (string, error)
 }
 

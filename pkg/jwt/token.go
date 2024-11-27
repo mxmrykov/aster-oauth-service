@@ -1,9 +1,10 @@
 package jwt
 
 import (
+	"time"
+
 	"github.com/golang-jwt/jwt"
 	"github.com/mxmrykov/aster-oauth-service/internal/model"
-	"time"
 )
 
 func NewAccessRefreshToken(i model.AccessRefreshToken, signature string, access ...bool) (string, error) {
@@ -55,4 +56,20 @@ func ValidateAccessRefreshToken(XAuthToken, signature string) (model.AccessRefre
 	}
 
 	return model.AccessRefreshToken{}, err
+}
+
+func ValidateAsidToken(token, signature string) (model.SidToken, error) {
+	parsedToken, err := jwt.ParseWithClaims(
+		token,
+		&model.SidToken{},
+		func(token *jwt.Token) (interface{}, error) {
+			return []byte(signature), nil
+		},
+	)
+
+	if claims, ok := parsedToken.Claims.(*model.SidToken); ok && parsedToken.Valid {
+		return *claims, nil
+	}
+
+	return model.SidToken{}, err
 }

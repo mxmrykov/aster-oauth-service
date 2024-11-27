@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	_ "embed"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/mxmrykov/aster-oauth-service/internal/model"
 )
@@ -16,6 +17,9 @@ var (
 
 	//go:embed queries/signupClient.sql
 	signUpClient string
+
+	//go:embed queries/ifClientCorrect.sql
+	ifClientCorrect string
 )
 
 func (c *ClientStore) GetClient(ctx context.Context, iaid string) (string, string, error) {
@@ -44,6 +48,16 @@ func (c *ClientStore) PutClient(ctx context.Context, iaid, clientID, clientSecre
 
 func (c *ClientStore) SetClient(ctx context.Context, tx pgx.Tx, cr model.ClientSignUpRequest) error {
 	_, err := tx.Exec(ctx, signUpClient, [1]model.ClientSignUpRequest{cr})
+
+	return err
+}
+
+func (c *ClientStore) CheckClient(ctx context.Context, cid, csecret, iaid string) error {
+	ctx, cancel := context.WithTimeout(ctx, c.maxPoolInterval)
+
+	defer cancel()
+
+	_, err := c.pool.Exec(ctx, ifClientCorrect, cid, csecret, iaid)
 
 	return err
 }

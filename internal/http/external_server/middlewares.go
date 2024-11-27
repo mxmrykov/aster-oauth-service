@@ -2,17 +2,55 @@ package external_server
 
 import (
 	"errors"
+	"net/http"
+	"time"
+
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt"
 	innerJwt "github.com/mxmrykov/aster-oauth-service/pkg/jwt"
+	jwt2 "github.com/mxmrykov/aster-oauth-service/pkg/jwt"
 	"github.com/mxmrykov/aster-oauth-service/pkg/responize"
-	"net/http"
-	"time"
 )
 
 func (s *Server) footPrintAuth(gin *gin.Context) {
 
+}
+
+func (s *Server) internalAuthMiddleWare(ctx *gin.Context) {
+	authToken := ctx.GetHeader("X-Auth-Token")
+
+	if authToken == "" {
+		s.svc.Logger().Error().Msg("Empty auth token")
+		responize.R(ctx, nil, http.StatusBadRequest, "Empty auth token", true)
+		ctx.Abort()
+		return
+	}
+
+	jwtSecret, err := s.svc.IVault().GetSecret(
+		ctx,
+		s.svc.OAuth().Vault.TokenRepo.Path,
+		s.svc.OAuth().Vault.TokenRepo.AppJwtSecretName,
+	)
+
+	if err != nil {
+		s.svc.Logger().Error().Err(err).Msg("vault error")
+		responize.R(ctx, nil, http.StatusInternalServerError, "Internal authorization error", true)
+		ctx.Abort()
+		return
+	}
+
+	authPayload, err := jwt2.ValidateAsidToken(authToken, jwtSecret)
+
+	if err != nil {
+		s.svc.Logger().Error().Err(err).Msg("token error")
+		responize.R(ctx, nil, http.StatusBadRequest, "Invalid token", true)
+		ctx.Abort()
+		return
+	}
+
+	ctx.Set("iaid", authPayload.Iaid)
+	ctx.Next()
 }
 
 func (s *Server) authorizationMw(ctx *gin.Context) {

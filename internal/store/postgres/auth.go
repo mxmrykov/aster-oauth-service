@@ -5,25 +5,29 @@ import (
 	"embed"
 	_ "embed"
 	"fmt"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/mxmrykov/aster-oauth-service/internal/model"
 )
 
 var (
-	//go:embed queries/authorize.sql
+	//go:embed queries/auth/authorize.sql
 	authorizeQuery string
 
-	//go:embed queries/isPhoneInUse.sql
+	//go:embed queries/auth/isPhoneInUse.sql
 	isPhoneInUseQuery string
 
-	//go:embed queries/isLoginInUse.sql
+	//go:embed queries/auth/isLoginInUse.sql
 	isLoginInUseQuery string
 
 	//go:embed queries/signUpInserts/*
 	signUpUserInserts embed.FS
 
-	//go:embed queries/exit.sql
+	//go:embed queries/auth/exit.sql
 	exitQuery string
+
+	//go:embed queries/auth/enterSessionAuth.sql
+	enterSessionAuth string
 
 	inserts = [4]string{
 		"signUpUserInsert1.sql",
@@ -107,4 +111,28 @@ func (u *UserStore) Exit(ctx context.Context, iaid string, id int) error {
 	_, err := u.pool.Exec(ctx, exitQuery, iaid, id)
 
 	return err
+}
+
+func (u *UserStore) EnterSession(ctx context.Context, i model.EnterSession) error {
+	ctx, cancel := context.WithTimeout(ctx, u.maxPoolInterval)
+
+	defer cancel()
+
+	_, err := u.pool.Exec(ctx, enterSessionAuth, [1]model.EnterSession{i})
+
+	return err
+}
+
+func (u *UserStore) ExtractEaid(ctx context.Context, iaid string) (int, string, error) {
+	ctx, cancel := context.WithTimeout(ctx, u.maxPoolInterval)
+
+	defer cancel()
+
+	var (
+		e int
+		l string
+	)
+	err := u.pool.QueryRow(ctx, `select eid, login from users.signature where iaid = $1`, iaid).Scan(&e, &l)
+
+	return e, l, err
 }

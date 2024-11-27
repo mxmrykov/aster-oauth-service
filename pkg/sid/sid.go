@@ -34,17 +34,17 @@ func New(iaid string, dur time.Duration) string {
 	return base64.StdEncoding.EncodeToString(s)
 }
 
-func Validate(sid string) error {
+func Validate(sid string) (*Sid, error) {
 	r, err := base64.StdEncoding.DecodeString(sid)
 
 	if err != nil {
-		return fmt.Errorf("cannot decode sid: %s", err.Error())
+		return nil, fmt.Errorf("cannot decode sid: %s", err.Error())
 	}
 
 	m := new(Sid)
 
 	if err = json.Unmarshal(r, &m); err != nil {
-		return fmt.Errorf("cannot unmarshal sid details: %s", err.Error())
+		return nil, fmt.Errorf("cannot unmarshal sid details: %s", err.Error())
 	}
 
 	cs := md5.Sum(
@@ -53,14 +53,14 @@ func Validate(sid string) error {
 
 	switch {
 	case m.Expires.Before(time.Now()):
-		return fmt.Errorf("sid is expired")
+		return nil, fmt.Errorf("sid is expired")
 	case m.SignDt.After(time.Now()):
-		return fmt.Errorf("sid is not valid yet")
+		return nil, fmt.Errorf("sid is not valid yet")
 	case m.Checksum == "":
-		return fmt.Errorf("invalid checksum")
+		return nil, fmt.Errorf("invalid checksum")
 	case m.Checksum != hex.EncodeToString(cs[:]):
-		return fmt.Errorf("invalid checksum")
+		return nil, fmt.Errorf("invalid checksum")
 	}
 
-	return nil
+	return m, nil
 }

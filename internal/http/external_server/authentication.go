@@ -1,14 +1,17 @@
 package external_server
 
 import (
+	"net/http"
+	"strconv"
+
 	"github.com/gin-gonic/gin"
 	"github.com/mxmrykov/aster-oauth-service/internal/model"
 	"github.com/mxmrykov/aster-oauth-service/pkg/responize"
-	"net/http"
-	"strconv"
+	"github.com/mxmrykov/aster-oauth-service/pkg/sid"
 )
 
 func (s *Server) authHandshake(ctx *gin.Context) {
+	i := ctx.GetString("iaid")
 	request := new(model.AuthRequest)
 
 	if err := ctx.ShouldBindJSON(request); err != nil {
@@ -16,6 +19,47 @@ func (s *Server) authHandshake(ctx *gin.Context) {
 		responize.R(ctx, nil, http.StatusBadRequest, "Invalid request", true)
 		return
 	}
+
+	p, err := sid.Validate(i)
+
+	if err != nil {
+		s.svc.Logger().Err(err).Msg("Invalid sid")
+		responize.R(ctx, nil, http.StatusUnauthorized, "Invalid SID", true)
+		return
+	}
+
+	if err = s.svc.ValidateClientAuth(ctx, request, p.Subscriber); err != nil {
+		s.svc.Logger().Err(err).Msg("Failed to validate auth")
+		responize.R(ctx, nil, http.StatusBadRequest, "Invalid auth", true)
+		return
+	}
+
+	dtoResponse, err := s.svc.ResourceOwnerAuthorize(ctx, p.Subscriber)
+
+	if err != nil {
+		s.svc.Logger().Err(err).Msg("Failed to authorize user")
+		responize.R(ctx, nil, http.StatusInternalServerError, "Failed to authorize user", true)
+		return
+	}
+
+	http.SetCookie(ctx.Writer, &http.Cookie{
+		Name:     "X-Refresh-Token",
+		Value:    dtoResponse.RefreshToken,
+		Path:     "/",
+		MaxAge:   2_592_000,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	responize.R(ctx, model.SignUpResponse{
+		Signature:   dtoResponse.Signature,
+		AccessToken: dtoResponse.AccessToken,
+	},
+		http.StatusOK,
+		"Successfully signed up user",
+		false,
+	)
 }
 
 func (s *Server) getPhoneCode(ctx *gin.Context) {

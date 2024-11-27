@@ -1,6 +1,6 @@
 package model
 
-type SignUpDTO struct{ AccessToken, RefreshToken, Signature string }
+type AuthDTO struct{ AccessToken, RefreshToken, Signature string }
 
 type DeviceInfo struct {
 	DeviceName    string
