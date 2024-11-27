@@ -32,3 +32,11 @@ func (r *RedisDc) set(ctx context.Context, k string, v interface{}, ttl time.Dur
 func (r *RedisDc) SetIAID(ctx context.Context, k, v string) error {
 	return r.set(ctx, k, v, -1)
 }
+
+func (r *RedisDc) Remove(ctx context.Context, k string) error {
+	ctx, cancel := context.WithTimeout(ctx, r.MaxPoolInterval)
+
+	defer cancel()
+
+	return r.Client.Del(ctx, k).Err()
+}

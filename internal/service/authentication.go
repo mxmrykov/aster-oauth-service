@@ -186,6 +186,12 @@ func (s *Service) SignupUser(ctx *gin.Context, r *model.SignupRequest) (*model.A
 		return nil, err
 	}
 
+	if err = s.RedisDc().Remove(ctx, r.Phone); err != nil {
+		_ = cltx.Rollback(ctx)
+		_ = utx.Rollback(ctx)
+		return nil, err
+	}
+
 	if err = utx.Commit(ctx); err != nil {
 		return nil, err
 	}
