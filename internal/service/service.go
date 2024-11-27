@@ -86,8 +86,8 @@ func NewService(ctx context.Context, cfg *config.OAuth, logger *zerolog.Logger) 
 	}
 
 	clientStorage, err := postgres.NewStore[config.ClientPostgres, postgres.ClientStore](ctx, cfg.ClientPostgres,
-		pgSecrets[cfg.Vault.PostgresSecret.UPostgresUserName],
-		pgSecrets[cfg.Vault.PostgresSecret.UPostgresSecretName],
+		pgSecrets[cfg.Vault.PostgresSecret.ClPostgresUserName],
+		pgSecrets[cfg.Vault.PostgresSecret.ClPostgresSecretName],
 	)
 
 	if err != nil {

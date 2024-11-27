@@ -1,0 +1,1 @@
+select clientID, clientSecret from profiles.secrets where iaid = $1;

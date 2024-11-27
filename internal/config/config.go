@@ -30,6 +30,7 @@ type (
 
 		MaxPoolInterval time.Duration `yaml:"maxPoolInterval"`
 		OAuthCodeExp    time.Duration `yaml:"oauthCodeExp"`
+		ConfirmCodeExp  time.Duration `yaml:"confirmCodeExp"`
 	}
 
 	TcRedis struct {
@@ -66,7 +67,7 @@ type (
 		TokenRepo struct {
 			Path string `yaml:"path"`
 
-			OAuthJwtSecretName string `yaml:"oauthJwtSecretName"`
+			OAuthJwtSecretName string `yaml:"oAuthJwtSecretName"`
 			AppJwtSecretName   string `yaml:"appJwtSecretName"`
 		} `yaml:"tokenRepo"`
 

@@ -19,15 +19,18 @@ type Vault struct {
 }
 
 func NewVault(cfg *config.Vault) (IVault, error) {
+	tls := vault.TLSConfiguration{}
+	tls.ServerCertificate.FromFile = "./pkg/clients/vault/ca_cert.pem"
+
 	client, err := vault.New(
 		vault.WithAddress(
 			fmt.Sprintf(
-				"http://%s:%d",
+				"https://%s",
 				cfg.Host,
-				cfg.Port,
 			),
 		),
 		vault.WithRequestTimeout(cfg.ClientTimeout),
+		vault.WithTLS(tls),
 	)
 
 	if err != nil {

@@ -2,8 +2,11 @@ package postgres
 
 import (
 	"context"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/mxmrykov/aster-oauth-service/internal/model"
 )
 
 type IUserStore interface {
@@ -12,9 +15,29 @@ type IUserStore interface {
 	)
 	IsPhoneInUse(ctx context.Context, phone string) (bool, error)
 	IsLoginInUse(ctx context.Context, login string) (bool, error)
+	SignUpUser(ctx context.Context,
+		tx pgx.Tx,
+		e model.ExternalSignUpRequest,
+		i model.InternalSignUpRequest,
+	) error
+	Exit(ctx context.Context, iaid string, id int) error
+	EnterSession(ctx context.Context, i model.EnterSession) error
+	ExtractEaid(ctx context.Context, iaid string) (int, string, error)
+
+	BeginTx(ctx context.Context) (pgx.Tx, error)
 }
 
 type UserStore struct {
 	pool            *pgxpool.Pool
 	maxPoolInterval time.Duration
+}
+
+func (u *UserStore) BeginTx(ctx context.Context) (pgx.Tx, error) {
+	tx, err := u.pool.BeginTx(ctx, pgx.TxOptions{})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return tx, nil
 }

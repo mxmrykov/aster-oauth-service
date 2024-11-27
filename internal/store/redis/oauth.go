@@ -13,20 +13,6 @@ func (r *RedisDc) SetConfirmCode(ctx context.Context, k, v string) error {
 	return r.set(ctx, k, v, r.confirmCodeExp)
 }
 
-func (r *RedisDc) IsAlive(ctx context.Context, k string) (bool, error) {
-	ctx, cancel := context.WithTimeout(ctx, r.MaxPoolInterval)
-
-	defer cancel()
-
-	ttl, err := r.Client.TTL(ctx, k).Result()
-
-	if err != nil {
-		return false, err
-	}
-
-	return ttl > 0*time.Second, nil
-}
-
 func (r *RedisDc) Get(ctx context.Context, k string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, r.MaxPoolInterval)
 
@@ -35,10 +21,22 @@ func (r *RedisDc) Get(ctx context.Context, k string) (string, error) {
 	return r.Client.Get(ctx, k).Result()
 }
 
-func (r *RedisDc) set(ctx context.Context, k, v string, ttl time.Duration) error {
+func (r *RedisDc) set(ctx context.Context, k string, v interface{}, ttl time.Duration) error {
 	ctx, cancel := context.WithTimeout(ctx, r.MaxPoolInterval)
 
 	defer cancel()
 
 	return r.Client.Set(ctx, k, v, ttl).Err()
+}
+
+func (r *RedisDc) SetIAID(ctx context.Context, k, v string) error {
+	return r.set(ctx, k, v, -1)
+}
+
+func (r *RedisDc) Remove(ctx context.Context, k string) error {
+	ctx, cancel := context.WithTimeout(ctx, r.MaxPoolInterval)
+
+	defer cancel()
+
+	return r.Client.Del(ctx, k).Err()
 }

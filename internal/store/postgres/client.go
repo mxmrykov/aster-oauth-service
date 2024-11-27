@@ -1,19 +1,35 @@
 package postgres
 
-import "context"
+import (
+	"context"
+	_ "embed"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/mxmrykov/aster-oauth-service/internal/model"
+)
+
+var (
+	//go:embed queries/getClientData.sql
+	getClientDataQuery string
+
+	//go:embed queries/putClientData.sql
+	putClientDataQuery string
+
+	//go:embed queries/signupClient.sql
+	signUpClient string
+
+	//go:embed queries/ifClientCorrect.sql
+	ifClientCorrect string
+)
 
 func (c *ClientStore) GetClient(ctx context.Context, iaid string) (string, string, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.maxPoolInterval)
 
 	defer cancel()
 
-	const query = `
-	select clientID, clientSecret from profiles.secrets where iaid = $1;
-	`
-
 	var clientID, clientSecret string
 
-	if err := c.pool.QueryRow(ctx, query, iaid).Scan(&clientID, &clientSecret); err != nil {
+	if err := c.pool.QueryRow(ctx, getClientDataQuery, iaid).Scan(&clientID, &clientSecret); err != nil {
 		return "", "", err
 	}
 
@@ -25,11 +41,23 @@ func (c *ClientStore) PutClient(ctx context.Context, iaid, clientID, clientSecre
 
 	defer cancel()
 
-	const query = `
-	update profiles.secrets set clientID = $1, clientSecret = $2 where iaid = $3;
-	`
+	_, err := c.pool.Exec(ctx, putClientDataQuery, clientID, clientSecret, iaid)
 
-	_, err := c.pool.Exec(ctx, query, clientID, clientSecret, iaid)
+	return err
+}
+
+func (c *ClientStore) SetClient(ctx context.Context, tx pgx.Tx, cr model.ClientSignUpRequest) error {
+	_, err := tx.Exec(ctx, signUpClient, [1]model.ClientSignUpRequest{cr})
+
+	return err
+}
+
+func (c *ClientStore) CheckClient(ctx context.Context, cid, csecret, iaid string) error {
+	ctx, cancel := context.WithTimeout(ctx, c.maxPoolInterval)
+
+	defer cancel()
+
+	_, err := c.pool.Exec(ctx, ifClientCorrect, cid, csecret, iaid)
 
 	return err
 }

@@ -1,0 +1,1 @@
+select exists(select * from users.signature where login = $1) as e;

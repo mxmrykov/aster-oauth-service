@@ -1,0 +1,1 @@
+delete from profiles.secrets where iaid = $1 and id = $2;

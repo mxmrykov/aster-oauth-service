@@ -4,6 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+
+	"github.com/mxmrykov/aster-oauth-service/internal/model"
+
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/mxmrykov/aster-oauth-service/internal/cache"
 	"github.com/mxmrykov/aster-oauth-service/internal/config"
@@ -11,7 +16,6 @@ import (
 	"github.com/mxmrykov/aster-oauth-service/internal/store/redis"
 	"github.com/mxmrykov/aster-oauth-service/pkg/clients/vault"
 	"github.com/rs/zerolog"
-	"net/http"
 )
 
 type IServer interface {
@@ -28,9 +32,18 @@ type IServer interface {
 	RedisTc() redis.IRedisTc
 
 	SetPhoneConfirmCode(ctx *gin.Context, phone string) error
+	IfCodeSent(ctx *gin.Context, phone string) (bool, error)
 	IfPhoneInUse(ctx *gin.Context, phone string) (bool, error)
 	IfLoginInUse(ctx *gin.Context, login string) (bool, error)
 	GetPhoneConfirmCode(ctx *gin.Context, phone string) (string, error)
+	SetPhoneConfirmed(ctx *gin.Context, phone string) error
+	ValidateUserSignup(ctx *gin.Context, r *model.SignupRequest) error
+	SignupUser(ctx *gin.Context, r *model.SignupRequest) (*model.AuthDTO, error)
+
+	GenToken(Iaid, Eaid, oauthSecret, signature string, access ...bool) (string, error)
+	Exit(ctx *gin.Context, signature, iaid string, id int)
+	ValidateClientAuth(ctx context.Context, r *model.AuthRequest, iaid string) error
+	ResourceOwnerAuthorize(ctx *gin.Context, iaid string) (*model.AuthDTO, error)
 }
 
 type Server struct {
@@ -45,11 +58,11 @@ const (
 	// authorizationGroupV1 - авторизованные пользователи, работаем с токенами
 	authorizationGroupV1 = "oauth/api/v1/authorization"
 
-	authorizationEndpoint              = "/auth/handshake"
-	registrationEndpoint               = "/signup/handshake"
-	registrationGetConfirmCodeEndpoint = "/signup/confirm/code"
+	authorizationEndpoint              = "/handshake"
+	registrationEndpoint               = "/handshake"
+	registrationGetConfirmCodeEndpoint = "/confirm/code"
 
-	authorizeEndpoint = "/authorize"
+	exitSessionEndpoint = "/exit/session"
 )
 
 func NewServer(logger *zerolog.Logger, svc IServer) *Server {
@@ -76,17 +89,29 @@ func NewServer(logger *zerolog.Logger, svc IServer) *Server {
 
 func (s *Server) configureRouter() {
 	s.router.Use(s.footPrintAuth)
+	s.router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000", "https://aster.ru"},
+		AllowMethods:     []string{"POST", "GET", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-type", "X-TempAuth-Token", "X-Access-Token", "X-Auth-Token"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
 
 	authenticationGroup := s.router.Group(authenticationGroupV1)
-	authenticationGroup.Use(s.authenticationMw)
-	authenticationGroup.POST(authorizationEndpoint, s.authHandshake)
-	authenticationGroup.POST(registrationEndpoint, s.signupHandshake)
-	authenticationGroup.GET(registrationGetConfirmCodeEndpoint, s.getPhoneCode)
-	authenticationGroup.POST(registrationGetConfirmCodeEndpoint, s.confirmCode)
+
+	aauth := authenticationGroup.Group("/auth")
+	aauth.Use(s.internalAuthMiddleWare)
+	aauth.POST(authorizationEndpoint, s.authHandshake)
+
+	asignup := authenticationGroup.Group("/signup")
+	asignup.Use(s.authenticationMw)
+	asignup.POST(registrationEndpoint, s.signupHandshake)
+	asignup.GET(registrationGetConfirmCodeEndpoint, s.getPhoneCode)
+	asignup.POST(registrationGetConfirmCodeEndpoint, s.confirmCode)
 
 	authorizationGroup := s.router.Group(authorizationGroupV1)
 	authorizationGroup.Use(s.authorizationMw)
-	authorizationGroup.POST(authorizeEndpoint, s.authenticate)
+	authorizationGroup.POST(exitSessionEndpoint, s.exitSession)
 
 }
 

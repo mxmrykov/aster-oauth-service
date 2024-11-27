@@ -4,15 +4,16 @@ dcRedis:
   port: 8803
   maxPoolInterval: 5s
   oauthCodeExp: 1m
+  confirmCodeExp: 3m
 tcRedis:
   host: "localhost"
-  port: 8805
+  port: 8803 #for dev, next there will be different hosts w dc
   maxPoolInterval: 5s
   accessTokenDuration: 15m
   refreshTokenDuration: 720h
 clientPostgres:
   host: "localhost"
-  port: 5492
+  port: 5492 #for dev, next there will be different hosts w user
   dataBaseName: "client-db"
   maxPoolInterval: 10s
 userPostgres:
@@ -21,11 +22,11 @@ userPostgres:
   dataBaseName: "user-db"
   maxPoolInterval: 10s
 vault:
-  host: "localhost"
+  host: "83.220.175.189"
   port: 8801
   clientTimeout: "10s"
   tokenRepo:
-    path: "/v1/secret/data/auth-api/tokens"
+    path: "/v1/secret/data/oauth-service/tokens"
     oAuthJwtSecretName: "oAuthJwtSecret"
     appJwtSecretName: "appJwtSecret"
   redisSecret:
