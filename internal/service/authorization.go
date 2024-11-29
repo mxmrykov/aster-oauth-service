@@ -66,7 +66,8 @@ func (s *Service) ResourceOwnerAuthorize(ctx *gin.Context, iaid string) (*model.
 	device := utils.GetDeviceInfo(ctx.Request.UserAgent())
 
 	if err = s.IUserStore.EnterSession(ctx, model.EnterSession{
-		Iaid: iaid,
+		Iaid:      iaid,
+		Signature: signature,
 		InternalSignUpRequest: model.InternalSignUpRequest{
 			Ip:             ctx.Request.RemoteAddr,
 			DeviceName:     fmt.Sprintf("%s %s, %s", device.OSName, device.OSVersion, device.DeviceName),

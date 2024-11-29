@@ -41,7 +41,7 @@ type IServer interface {
 	SignupUser(ctx *gin.Context, r *model.SignupRequest) (*model.AuthDTO, error)
 
 	GenToken(Iaid, Eaid, oauthSecret, signature string, access ...bool) (string, error)
-	Exit(ctx *gin.Context, signature, iaid string, id int)
+	Exit(ctx *gin.Context, signature, iaid string)
 	ValidateClientAuth(ctx context.Context, r *model.AuthRequest, iaid string) error
 	ResourceOwnerAuthorize(ctx *gin.Context, iaid string) (*model.AuthDTO, error)
 }
@@ -63,6 +63,36 @@ const (
 	registrationGetConfirmCodeEndpoint = "/confirm/code"
 
 	exitSessionEndpoint = "/exit/session"
+)
+
+var (
+	ALLOW_HEADERS = []string{
+		"Origin",
+		"Content-type",
+		"X-TempAuth-Token",
+		"X-Access-Token",
+		"X-Auth-Token",
+		"X-Signature",
+	}
+
+	ALLOW_METHODS = []string{
+		"POST",
+		"GET",
+		"OPTIONS",
+	}
+
+	ALLOW_ORIGINS = []string{
+		"http://localhost:3000",
+		"https://aster.ru",
+	}
+
+	CORS_CONFIG = cors.New(cors.Config{
+		AllowOrigins:     ALLOW_ORIGINS,
+		AllowMethods:     ALLOW_METHODS,
+		AllowHeaders:     ALLOW_HEADERS,
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	})
 )
 
 func NewServer(logger *zerolog.Logger, svc IServer) *Server {
@@ -89,13 +119,7 @@ func NewServer(logger *zerolog.Logger, svc IServer) *Server {
 
 func (s *Server) configureRouter() {
 	s.router.Use(s.footPrintAuth)
-	s.router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", "https://aster.ru"},
-		AllowMethods:     []string{"POST", "GET", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-type", "X-TempAuth-Token", "X-Access-Token", "X-Auth-Token"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-	}))
+	s.router.Use(CORS_CONFIG)
 
 	authenticationGroup := s.router.Group(authenticationGroupV1)
 

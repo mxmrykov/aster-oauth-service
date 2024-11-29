@@ -103,12 +103,12 @@ func (u *UserStore) SignUpUser(ctx context.Context,
 	return nil
 }
 
-func (u *UserStore) Exit(ctx context.Context, iaid string, id int) error {
+func (u *UserStore) Exit(ctx context.Context, iaid, signature string) error {
 	ctx, cancel := context.WithTimeout(ctx, u.maxPoolInterval)
 
 	defer cancel()
 
-	_, err := u.pool.Exec(ctx, exitQuery, iaid, id)
+	_, err := u.pool.Exec(ctx, exitQuery, iaid, signature)
 
 	return err
 }

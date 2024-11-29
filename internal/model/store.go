@@ -1,12 +1,13 @@
 package model
 
 type ExternalSignUpRequest struct {
-	Iaid     string `json:"iaid"`
-	Eaid     string `json:"eaid"`
-	Name     string `json:"name"`
-	Login    string `json:"login"`
-	Phone    string `json:"phone"`
-	Password string `json:"password"`
+	Iaid      string `json:"iaid"`
+	Eaid      string `json:"eaid"`
+	Signature string `json:"signature"`
+	Name      string `json:"name"`
+	Login     string `json:"login"`
+	Phone     string `json:"phone"`
+	Password  string `json:"password"`
 }
 
 type InternalSignUpRequest struct {
@@ -22,6 +23,7 @@ type ClientSignUpRequest struct {
 }
 
 type EnterSession struct {
-	Iaid string `json:"iaid"`
+	Iaid      string `json:"iaid"`
+	Signature string `json:"signature"`
 	InternalSignUpRequest
 }

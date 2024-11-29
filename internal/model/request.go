@@ -21,7 +21,3 @@ type ConfirmPhoneCodeRequest struct {
 	Phone string `binding:"required" json:"phone" form:"phone"`
 	Code  int    `binding:"required" json:"code"  form:"code"`
 }
-
-type ExitRequest struct {
-	Id int `binding:"required" form:"id"`
-}

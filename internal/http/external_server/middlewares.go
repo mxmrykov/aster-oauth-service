@@ -1,20 +1,67 @@
 package external_server
 
 import (
+	"encoding/base64"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-redis/redis/v8"
 	"github.com/golang-jwt/jwt"
-	innerJwt "github.com/mxmrykov/aster-oauth-service/pkg/jwt"
+	"github.com/google/uuid"
+	"github.com/mxmrykov/aster-oauth-service/internal/cache"
 	jwt2 "github.com/mxmrykov/aster-oauth-service/pkg/jwt"
 	"github.com/mxmrykov/aster-oauth-service/pkg/responize"
 )
 
-func (s *Server) footPrintAuth(gin *gin.Context) {
+func (s *Server) footPrintAuth(ctx *gin.Context) {
+	c, err := ctx.Request.Cookie("X-Client-Footprint")
 
+	if err != nil {
+		switch {
+		case errors.Is(err, http.ErrNoCookie):
+			ctx.Set("X-Client-Footprint", s.setFootprintCookie(ctx))
+		default:
+			responize.R(ctx, nil, http.StatusBadRequest, "Footprint: signature failed", true)
+			return
+		}
+	} else {
+		fpClient := s.svc.ICache().GetClient(c.Value)
+
+		switch {
+		case c.Value == "":
+			ctx.Set("X-Client-Footprint", s.setFootprintCookie(ctx))
+			ctx.Next()
+		case fpClient == nil:
+			s.dropFootprintCookie(ctx)
+
+			responize.R(ctx, nil, http.StatusUnauthorized, "Footprint: invalid signature", true)
+			return
+		case fpClient.RateLimitRemain <= 1:
+			if !time.Now().After(fpClient.LastReq.Add(s.svc.OAuth().ExternalServer.RateLimiterTimeframe)) {
+				fpClient.LastReq = time.Now()
+				fpClient.LastUpdated = time.Now()
+				s.svc.ICache().SetClient(c.Value, fpClient)
+
+				responize.R(ctx, nil, http.StatusTooManyRequests, "Footprint: rate limited", true)
+				return
+			}
+
+			fpClient.RateLimitRemain = s.svc.OAuth().ExternalServer.RateLimiterCap
+		default:
+			fpClient.RateLimitRemain -= 1
+		}
+
+		fpClient.LastReq = time.Now()
+		fpClient.LastUpdated = time.Now()
+
+		s.svc.ICache().SetClient(c.Value, fpClient)
+		ctx.Set("X-Client-Footprint", c.Value)
+	}
+
+	ctx.Next()
 }
 
 func (s *Server) internalAuthMiddleWare(ctx *gin.Context) {
@@ -23,7 +70,6 @@ func (s *Server) internalAuthMiddleWare(ctx *gin.Context) {
 	if authToken == "" {
 		s.svc.Logger().Error().Msg("Empty auth token")
 		responize.R(ctx, nil, http.StatusBadRequest, "Empty auth token", true)
-		ctx.Abort()
 		return
 	}
 
@@ -36,7 +82,6 @@ func (s *Server) internalAuthMiddleWare(ctx *gin.Context) {
 	if err != nil {
 		s.svc.Logger().Error().Err(err).Msg("vault error")
 		responize.R(ctx, nil, http.StatusInternalServerError, "Internal authorization error", true)
-		ctx.Abort()
 		return
 	}
 
@@ -45,7 +90,6 @@ func (s *Server) internalAuthMiddleWare(ctx *gin.Context) {
 	if err != nil {
 		s.svc.Logger().Error().Err(err).Msg("token error")
 		responize.R(ctx, nil, http.StatusBadRequest, "Invalid token", true)
-		ctx.Abort()
 		return
 	}
 
@@ -74,7 +118,7 @@ func (s *Server) authorizationMw(ctx *gin.Context) {
 		return
 	}
 
-	payload, err := innerJwt.ValidateAccessRefreshToken(access, jwtSecret)
+	payload, err := jwt2.ValidateAccessRefreshToken(access, jwtSecret)
 
 	if err != nil {
 		v := new(jwt.ValidationError)
@@ -88,7 +132,7 @@ func (s *Server) authorizationMw(ctx *gin.Context) {
 					return
 				}
 
-				refreshPayload, err := innerJwt.ValidateAccessRefreshToken(refresh.Value, jwtSecret)
+				refreshPayload, err := jwt2.ValidateAccessRefreshToken(refresh.Value, jwtSecret)
 
 				if err != nil {
 					v := new(jwt.ValidationError)
@@ -127,6 +171,10 @@ func (s *Server) authorizationMw(ctx *gin.Context) {
 				ctx.Set("iaid", refreshPayload.Iaid)
 				ctx.Next()
 				return
+			} else {
+				s.svc.Logger().Error().Err(err).Msg("invalid X-Access-Token")
+				responize.R(ctx, nil, http.StatusBadRequest, "Invalid X-Access-Token", true)
+				return
 			}
 		} else {
 			s.svc.Logger().Error().Err(err).Msg("invalid X-Access-Token")
@@ -161,7 +209,7 @@ func (s *Server) authenticationMw(ctx *gin.Context) {
 		return
 	}
 
-	payload, err := innerJwt.ValidateXAuthToken(token, jwtSecret)
+	payload, err := jwt2.ValidateXAuthToken(token, jwtSecret)
 
 	if err != nil {
 		s.svc.Logger().Error().Err(err).Msg("invalid X-TempAuth-Token")
@@ -201,4 +249,42 @@ func (s *Server) authenticationMw(ctx *gin.Context) {
 	ctx.Set("asid", payload.Asid)
 	ctx.Set("login", login)
 	ctx.Next()
+}
+
+func (s *Server) dropFootprintCookie(ctx *gin.Context) {
+	http.SetCookie(ctx.Writer, &http.Cookie{
+		Name:     "X-Client-Footprint",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+}
+
+func (s *Server) setFootprintCookie(ctx *gin.Context) string {
+	sign := base64.StdEncoding.EncodeToString(
+		[]byte(
+			uuid.New().String(),
+		),
+	)
+
+	s.svc.ICache().SetClient(strings.ToUpper(sign), &cache.Props{
+		RateLimitRemain: 5,
+		LastReq:         time.Now(),
+		LastUpdated:     time.Now(),
+	})
+
+	http.SetCookie(ctx.Writer, &http.Cookie{
+		Name:     "X-Client-Footprint",
+		Value:    strings.ToUpper(sign),
+		Path:     "/",
+		MaxAge:   s.svc.OAuth().ExternalServer.RateLimitCookieLifetime,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	return strings.ToUpper(sign)
 }

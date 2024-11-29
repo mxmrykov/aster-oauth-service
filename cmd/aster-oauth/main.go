@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+
 	"github.com/mxmrykov/aster-oauth-service/internal/config"
 	"github.com/mxmrykov/aster-oauth-service/internal/service"
 	"github.com/mxmrykov/aster-oauth-service/pkg/utils"
@@ -10,6 +12,8 @@ import (
 )
 
 func main() {
+	os.Setenv("BUILD_ENV", "local")
+	os.Setenv("VAULT_AUTH_TOKEN", "hvs.CAESIGTYh1nuNhYQNytin2slQdg7vDEHExB9_R2VCbwlqNR-Gh4KHGh2cy4yWFNDQkROUFh1VU8zU0ExU29TNHVqbzg")
 	_, ctx := errgroup.WithContext(context.Background())
 	cfg, logger, err := config.InitConfig()
 

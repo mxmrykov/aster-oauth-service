@@ -20,7 +20,7 @@ type IUserStore interface {
 		e model.ExternalSignUpRequest,
 		i model.InternalSignUpRequest,
 	) error
-	Exit(ctx context.Context, iaid string, id int) error
+	Exit(ctx context.Context, iaid, signature string) error
 	EnterSession(ctx context.Context, i model.EnterSession) error
 	ExtractEaid(ctx context.Context, iaid string) (int, string, error)
 

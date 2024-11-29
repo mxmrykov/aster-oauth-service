@@ -1,14 +1,14 @@
 package external_server
 
 import (
-	"github.com/gin-gonic/gin"
-	"github.com/mxmrykov/aster-oauth-service/internal/model"
-	"github.com/mxmrykov/aster-oauth-service/pkg/responize"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
+	"github.com/mxmrykov/aster-oauth-service/pkg/responize"
 )
 
 func (s *Server) exitSession(ctx *gin.Context) {
-	iaid, r := ctx.GetString("iaid"), new(model.ExitRequest)
+	iaid := ctx.GetString("iaid")
 
 	if iaid == "" {
 		s.svc.Logger().Error().Msg("No IAID provided")
@@ -16,13 +16,7 @@ func (s *Server) exitSession(ctx *gin.Context) {
 		return
 	}
 
-	if err := ctx.ShouldBindQuery(r); err != nil {
-		s.svc.Logger().Error().Msg("Invalid params")
-		responize.R(ctx, nil, http.StatusBadRequest, "Invalid params", true)
-		return
-	}
-
-	s.svc.Exit(ctx, ctx.Request.Header.Get("X-Signature"), iaid, r.Id)
+	s.svc.Exit(ctx, ctx.Request.Header.Get("X-Signature"), iaid)
 
 	responize.R(ctx, nil, http.StatusOK, "Success", true)
 }

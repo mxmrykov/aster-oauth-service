@@ -98,7 +98,7 @@ func (s *Service) ValidateUserSignup(ctx *gin.Context, r *model.SignupRequest) e
 }
 
 func (s *Service) SignupUser(ctx *gin.Context, r *model.SignupRequest) (*model.AuthDTO, error) {
-	oauthSecret, err := s.Vault.GetSecret(ctx, s.Cfg.Vault.TokenRepo.Path, s.Cfg.Vault.TokenRepo.OAuthJwtSecretName)
+	oauthSecret, err := s.Vault.GetSecret(ctx, s.Cfg.Vault.TokenRepo.Path, s.Cfg.Vault.TokenRepo.AppJwtSecretName)
 
 	if err != nil {
 		return nil, err
@@ -109,13 +109,13 @@ func (s *Service) SignupUser(ctx *gin.Context, r *model.SignupRequest) (*model.A
 		base64.StdEncoding.EncodeToString([]byte(uuid.New().String())),
 		strings.ToUpper(uuid.New().String())
 
-	accessToken, err := s.GenToken(Iaid, oauthSecret, Eaid, signature, true)
+	accessToken, err := s.GenToken(Iaid, Eaid, oauthSecret, signature, true)
 
 	if err != nil {
 		return nil, err
 	}
 
-	refreshToken, err := s.GenToken(Iaid, oauthSecret, signature, Eaid)
+	refreshToken, err := s.GenToken(Iaid, Eaid, oauthSecret, signature)
 
 	if err != nil {
 		return nil, err
@@ -139,12 +139,13 @@ func (s *Service) SignupUser(ctx *gin.Context, r *model.SignupRequest) (*model.A
 
 	if err = s.IUserStore.SignUpUser(ctx, utx,
 		model.ExternalSignUpRequest{
-			Iaid:     Iaid,
-			Eaid:     Eaid,
-			Name:     r.Name,
-			Login:    r.Login,
-			Phone:    r.Phone,
-			Password: pwd,
+			Iaid:      Iaid,
+			Eaid:      Eaid,
+			Signature: signature,
+			Name:      r.Name,
+			Login:     r.Login,
+			Phone:     r.Phone,
+			Password:  pwd,
 		},
 		model.InternalSignUpRequest{
 			Ip:             ctx.Request.RemoteAddr,

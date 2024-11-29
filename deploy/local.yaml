@@ -47,3 +47,6 @@ grpcServer:
 externalServer:
   port: 1001
   maxPollTime: 15s
+  rateLimiterTimeframe: "5s"
+  rateLimiterCap: 5
+  rateLimitCookieLifetime: 900

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+
 	"github.com/mxmrykov/aster-oauth-service/internal/cache"
 	"github.com/mxmrykov/aster-oauth-service/internal/config"
 	"github.com/mxmrykov/aster-oauth-service/internal/grpc_server"
@@ -96,6 +97,7 @@ func NewService(ctx context.Context, cfg *config.OAuth, logger *zerolog.Logger) 
 
 	svc := &Service{
 		Zerolog:      logger,
+		Cache:        cache.NewCache(),
 		Cfg:          cfg,
 		Vault:        v,
 		IRedisDc:     dc,
